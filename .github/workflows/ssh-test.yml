@@ -24,20 +24,204 @@ jobs:
       - name: Build JAR
         run: ./mvnw.cmd package -DskipTests
 
+      - name: Verify JAR exists
+        run: |
+          if (!(Test-Path "target\DigiWallet-0.0.1-SNAPSHOT.jar")) {
+            Write-Error "JAR file not found!"
+            exit 1
+          }
+          Write-Host "✓ JAR file verified: target\DigiWallet-0.0.1-SNAPSHOT.jar"
+
       - name: Start Backend
         run: |
-          Start-Process java -ArgumentList "-jar","target\DigiWallet-0.0.1-SNAPSHOT.jar" -WindowStyle Hidden
-          Start-Sleep -Seconds 15
-          echo "Backend running on http://localhost:8080"
-
+          $jarPath = Resolve-Path "target\DigiWallet-0.0.1-SNAPSHOT.jar"
+          $logPath = Resolve-Path "." | Join-Path -ChildPath "logs"
+          
+          # Create logs directory
+          if (!(Test-Path $logPath)) {
+            New-Item -ItemType Directory -Path $logPath | Out-Null
+          }
+          
+          $backendLog = Join-Path $logPath "backend.log"
+          $backendErrorLog = Join-Path $logPath "backend-error.log"
+          
+          Write-Host "Starting backend..."
+          Write-Host "JAR: $jarPath"
+          Write-Host "Logs: $backendLog"
+          
+          # Start backend as a job (works in service context)
+          $job = Start-Job -ScriptBlock {
+            param($jar, $log, $errLog)
+            java -jar $jar *> $log 2> $errLog
+          } -ArgumentList $jarPath, $backendLog, $backendErrorLog
+          
+          Write-Host "Backend job started (ID: $($job.Id))"
+          
+          # Wait for backend to start (check port)
+          $maxAttempts = 30
+          $attempt = 0
+          $backendReady = $false
+          
+          while ($attempt -lt $maxAttempts -and !$backendReady) {
+            Start-Sleep -Seconds 2
+            $attempt++
+            Write-Host "Checking backend... attempt $attempt/$maxAttempts"
+            
+            try {
+              $connection = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
+              if ($connection) {
+                $backendReady = $true
+                Write-Host "✓ Backend is listening on port 8080"
+              }
+            } catch {
+              # Port not ready yet
+            }
+            
+            # Check if job failed
+            if ($job.State -eq "Failed" -or $job.State -eq "Stopped") {
+              Write-Error "Backend job failed to start!"
+              if (Test-Path $backendErrorLog) {
+                Write-Host "=== Backend Error Log ==="
+                Get-Content $backendErrorLog | Select-Object -Last 50
+              }
+              exit 1
+            }
+          }
+          
+          if (!$backendReady) {
+            Write-Error "Backend failed to bind to port 8080 within 60 seconds"
+            if (Test-Path $backendLog) {
+              Write-Host "=== Backend Log (last 50 lines) ==="
+              Get-Content $backendLog | Select-Object -Last 50
+            }
+            exit 1
+          }
+          
+          Write-Host "✓ Backend successfully started on http://localhost:8080"
 
       - name: Start Frontend
         run: |
-          $workDir = Join-Path (Get-Location) "frontend"
-          Start-Process powershell -ArgumentList "-File","$workDir\http-server.ps1" -WindowStyle Hidden
-          Start-Sleep -Seconds 5
-          echo "Frontend running on http://localhost:3000"
+          $frontendPath = Resolve-Path "frontend"
+          $logPath = Resolve-Path "." | Join-Path -ChildPath "logs"
+          $frontendLog = Join-Path $logPath "frontend.log"
+          
+          Write-Host "Starting frontend..."
+          Write-Host "Frontend path: $frontendPath"
+          Write-Host "Log: $frontendLog"
+          
+          # Start frontend HTTP server as a job
+          $job = Start-Job -ScriptBlock {
+            param($path, $log)
+            Set-Location $path
+            
+            $port = 3000
+            $listener = New-Object System.Net.HttpListener
+            $listener.Prefixes.Add("http://localhost:$port/")
+            
+            try {
+              $listener.Start()
+              "Server started on port $port" | Out-File $log
+              
+              while ($listener.IsListening) {
+                $context = $listener.GetContext()
+                $request = $context.Request
+                $response = $context.Response
+                
+                $urlPath = $request.Url.LocalPath
+                if ($urlPath -eq "/") { $urlPath = "/index.html" }
+                
+                $filePath = Join-Path $path $urlPath.TrimStart('/')
+                
+                if (Test-Path $filePath -PathType Leaf) {
+                  $content = [System.IO.File]::ReadAllBytes($filePath)
+                  $response.ContentLength64 = $content.Length
+                  
+                  $ext = [System.IO.Path]::GetExtension($filePath)
+                  $response.ContentType = switch ($ext) {
+                    ".html" { "text/html" }
+                    ".css"  { "text/css" }
+                    ".js"   { "application/javascript" }
+                    ".json" { "application/json" }
+                    ".png"  { "image/png" }
+                    ".jpg"  { "image/jpeg" }
+                    ".svg"  { "image/svg+xml" }
+                    default { "application/octet-stream" }
+                  }
+                  
+                  $response.OutputStream.Write($content, 0, $content.Length)
+                  $response.StatusCode = 200
+                } else {
+                  $response.StatusCode = 404
+                  $buffer = [System.Text.Encoding]::UTF8.GetBytes("404 - Not Found")
+                  $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                }
+                
+                $response.Close()
+              }
+            } catch {
+              "Error: $_" | Out-File $log -Append
+            } finally {
+              if ($listener.IsListening) {
+                $listener.Stop()
+              }
+            }
+          } -ArgumentList $frontendPath, $frontendLog
+          
+          Write-Host "Frontend job started (ID: $($job.Id))"
+          
+          # Wait for frontend to start
+          $maxAttempts = 15
+          $attempt = 0
+          $frontendReady = $false
+          
+          while ($attempt -lt $maxAttempts -and !$frontendReady) {
+            Start-Sleep -Seconds 2
+            $attempt++
+            Write-Host "Checking frontend... attempt $attempt/$maxAttempts"
+            
+            try {
+              $connection = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+              if ($connection) {
+                $frontendReady = $true
+                Write-Host "✓ Frontend is listening on port 3000"
+              }
+            } catch {
+              # Port not ready yet
+            }
+            
+            if ($job.State -eq "Failed" -or $job.State -eq "Stopped") {
+              Write-Warning "Frontend job failed, but continuing deployment"
+              if (Test-Path $frontendLog) {
+                Get-Content $frontendLog
+              }
+              break
+            }
+          }
+          
+          if ($frontendReady) {
+            Write-Host "✓ Frontend successfully started on http://localhost:3000"
+          } else {
+            Write-Warning "Frontend may not have started correctly (continuing anyway)"
+          }
         continue-on-error: true
+
+      - name: Deployment Summary
+        if: success()
+        run: |
+          Write-Host ""
+          Write-Host "========================================" -ForegroundColor Green
+          Write-Host "   DEPLOYMENT SUCCESSFUL" -ForegroundColor Green
+          Write-Host "========================================" -ForegroundColor Green
+          Write-Host ""
+          Write-Host "Backend:  http://localhost:8080"
+          Write-Host "Frontend: http://localhost:3000"
+          Write-Host "Swagger:  http://localhost:8080/swagger-ui.html"
+          Write-Host ""
+          Write-Host "Logs directory: logs/"
+          Write-Host "  - backend.log"
+          Write-Host "  - backend-error.log"
+          Write-Host "  - frontend.log"
+          Write-Host ""
 
 
 
