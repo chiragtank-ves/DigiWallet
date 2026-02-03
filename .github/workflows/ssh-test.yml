@@ -41,19 +41,30 @@ jobs:
           
           Write-Host "Starting backend..."
           
-          # Start backend as detached process
+          # Kill any existing java processes on port 8080
+          $port8080 = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue
+          if ($port8080) {
+            Stop-Process -Id $port8080.OwningProcess -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 3
+          }
+          
+          # Start backend using background job that persists
           $jarPath = Resolve-Path "target\DigiWallet-0.0.1-SNAPSHOT.jar"
-          $logFile = Resolve-Path "logs" | Join-Path -ChildPath "backend.log"
-          $errorFile = Resolve-Path "logs" | Join-Path -ChildPath "backend-error.log"
+          $logDir = Resolve-Path "logs"
           
-          Start-Process -FilePath "java" `
-                       -ArgumentList "-jar","$jarPath" `
-                       -RedirectStandardOutput $logFile `
-                       -RedirectStandardError $errorFile `
-                       -NoNewWindow `
-                       -PassThru
+          # Create a scheduled task to run the backend (persists beyond workflow)
+          $action = New-ScheduledTaskAction -Execute "java" -Argument "-jar `"$jarPath`"" -WorkingDirectory (Get-Location)
+          $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(2)
+          $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
           
-          Write-Host "Backend process started"
+          # Remove existing task if exists
+          Unregister-ScheduledTask -TaskName "DigiWallet-Backend" -Confirm:$false -ErrorAction SilentlyContinue
+          
+          # Register and start task
+          Register-ScheduledTask -TaskName "DigiWallet-Backend" -Action $action -Trigger $trigger -Settings $settings -User "SYSTEM" | Out-Null
+          Start-ScheduledTask -TaskName "DigiWallet-Backend"
+          
+          Write-Host "Backend scheduled task started"
           
           # Wait for backend to start (check port)
           $maxAttempts = 30
@@ -66,8 +77,8 @@ jobs:
             Write-Host "Checking backend... attempt $attempt/$maxAttempts"
             
             try {
-              $result = Test-NetConnection -ComputerName localhost -Port 8080 -InformationLevel Quiet -WarningAction SilentlyContinue
-              if ($result) {
+              $connection = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
+              if ($connection) {
                 $backendReady = $true
                 Write-Host "[OK] Backend is listening on port 8080"
               }
@@ -78,14 +89,8 @@ jobs:
           
           if (!$backendReady) {
             Write-Error "Backend failed to bind to port 8080 within 60 seconds"
-            if (Test-Path $logFile) {
-              Write-Host "=== Backend Log (last 50 lines) ==="
-              Get-Content $logFile | Select-Object -Last 50
-            }
-            if (Test-Path $errorFile) {
-              Write-Host "=== Backend Error Log ==="
-              Get-Content $errorFile | Select-Object -Last 50
-            }
+            # Show task status
+            Get-ScheduledTask -TaskName "DigiWallet-Backend" | Select-Object TaskName, State, LastRunTime, LastTaskResult
             exit 1
           }
           
@@ -95,18 +100,29 @@ jobs:
         run: |
           Write-Host "Starting frontend..."
           
-          # Start frontend HTTP server
+          # Kill any existing process on port 3000
+          $port3000 = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
+          if ($port3000) {
+            Stop-Process -Id $port3000.OwningProcess -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+          }
+          
+          # Start frontend using scheduled task
           $frontendPath = Resolve-Path "frontend"
           $httpServerScript = Join-Path $frontendPath "http-server.ps1"
-          $logFile = Resolve-Path "logs" | Join-Path -ChildPath "frontend.log"
           
-          Start-Process -FilePath "powershell" `
-                       -ArgumentList "-ExecutionPolicy","Bypass","-File","$httpServerScript" `
-                       -RedirectStandardOutput $logFile `
-                       -NoNewWindow `
-                       -PassThru
+          $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -File `"$httpServerScript`"" -WorkingDirectory $frontendPath
+          $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(2)
+          $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
           
-          Write-Host "Frontend process started"
+          # Remove existing task if exists
+          Unregister-ScheduledTask -TaskName "DigiWallet-Frontend" -Confirm:$false -ErrorAction SilentlyContinue
+          
+          # Register and start task
+          Register-ScheduledTask -TaskName "DigiWallet-Frontend" -Action $action -Trigger $trigger -Settings $settings -User "SYSTEM" | Out-Null
+          Start-ScheduledTask -TaskName "DigiWallet-Frontend"
+          
+          Write-Host "Frontend scheduled task started"
           
           # Wait for frontend to start
           $maxAttempts = 15
@@ -119,8 +135,8 @@ jobs:
             Write-Host "Checking frontend... attempt $attempt/$maxAttempts"
             
             try {
-              $result = Test-NetConnection -ComputerName localhost -Port 3000 -InformationLevel Quiet -WarningAction SilentlyContinue
-              if ($result) {
+              $connection = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+              if ($connection) {
                 $frontendReady = $true
                 Write-Host "[OK] Frontend is listening on port 3000"
               }
@@ -132,11 +148,8 @@ jobs:
           if ($frontendReady) {
             Write-Host "[OK] Frontend successfully started on http://localhost:3000"
           } else {
-            Write-Warning "Frontend may not have started correctly (continuing anyway)"
-            if (Test-Path $logFile) {
-              Write-Host "=== Frontend Log ==="
-              Get-Content $logFile
-            }
+            Write-Warning "Frontend may not have started correctly"
+            Get-ScheduledTask -TaskName "DigiWallet-Frontend" | Select-Object TaskName, State, LastRunTime, LastTaskResult
           }
         continue-on-error: true
 
