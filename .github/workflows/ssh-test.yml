@@ -60,8 +60,8 @@ jobs:
           # Remove existing task if exists
           Unregister-ScheduledTask -TaskName "DigiWallet-Backend" -Confirm:$false -ErrorAction SilentlyContinue
           
-          # Register and start task
-          Register-ScheduledTask -TaskName "DigiWallet-Backend" -Action $action -Trigger $trigger -Settings $settings -User "SYSTEM" | Out-Null
+          # Register and start task (runs under current user context)
+          Register-ScheduledTask -TaskName "DigiWallet-Backend" -Action $action -Trigger $trigger -Settings $settings | Out-Null
           Start-ScheduledTask -TaskName "DigiWallet-Backend"
           
           Write-Host "Backend scheduled task started"
@@ -118,8 +118,8 @@ jobs:
           # Remove existing task if exists
           Unregister-ScheduledTask -TaskName "DigiWallet-Frontend" -Confirm:$false -ErrorAction SilentlyContinue
           
-          # Register and start task
-          Register-ScheduledTask -TaskName "DigiWallet-Frontend" -Action $action -Trigger $trigger -Settings $settings -User "SYSTEM" | Out-Null
+          # Register and start task (runs under current user context)
+          Register-ScheduledTask -TaskName "DigiWallet-Frontend" -Action $action -Trigger $trigger -Settings $settings | Out-Null
           Start-ScheduledTask -TaskName "DigiWallet-Frontend"
           
           Write-Host "Frontend scheduled task started"
