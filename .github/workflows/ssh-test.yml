@@ -34,9 +34,26 @@ jobs:
           }
         continue-on-error: true
 
-      - name: Start App
+      - name: Start Backend
         run: |
           Start-Process java -ArgumentList "-jar","target\DigiWallet-0.0.1-SNAPSHOT.jar" -WindowStyle Hidden
           Start-Sleep -Seconds 15
-          echo "App running on http://localhost:8080"
+          echo "Backend running on http://localhost:8080"
+
+      - name: Stop Old Frontend
+        run: |
+          $port3000 = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
+          if ($port3000) {
+            $processId = $port3000.OwningProcess
+            Stop-Process -Id $processId -Force
+            Start-Sleep -Seconds 2
+          }
+        continue-on-error: true
+
+      - name: Start Frontend
+        run: |
+          cd frontend
+          Start-Process python -ArgumentList "-m","http.server","3000" -WindowStyle Hidden
+          Start-Sleep -Seconds 5
+          echo "Frontend running on http://localhost:3000"
 
