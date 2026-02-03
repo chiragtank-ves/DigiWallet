@@ -1,143 +1,42 @@
-name: DigiWallet CI/CD Pipeline
+name: DigiWallet CI/CD
 
 on:
   push:
-    branches:
-      - main
-      - final_fsd
-  pull_request:
-    branches:
-      - main
-      - final_fsd
+    branches: [main, final_fsd]
 
 jobs:
-  build-test-deploy:
+  deploy:
     runs-on: self-hosted
-    name: Build, Test & Deploy DigiWallet
 
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'maven'
 
-      - name: Display Environment Info
-        run: |
-          echo "========================================="
-          echo "DigiWallet CI/CD Pipeline Started"
-          echo "========================================="
-          echo "Working Directory: %CD%"
-          echo "Java Version:"
-          java -version
-          echo "Maven Version:"
-          ./mvnw.cmd -version
-          echo "========================================="
+      - name: Run Tests
+        run: ./mvnw.cmd test
 
-      - name: Build Project (Skip Tests)
-        run: |
-          echo "Building DigiWallet Project..."
-          ./mvnw.cmd clean compile -DskipTests
+      - name: Build JAR
+        run: ./mvnw.cmd package -DskipTests
 
-      - name: Run Unit Tests
+      - name: Stop Old App
         run: |
-          echo "========================================="
-          echo "Running Unit Tests..."
-          echo "========================================="
-          ./mvnw.cmd test
-        continue-on-error: false
-
-      - name: Generate Test Report
-        if: always()
-        run: |
-          echo "========================================="
-          echo "Test Results Summary"
-          echo "========================================="
-          if (Test-Path target\surefire-reports\*.txt) {
-            Get-Content target\surefire-reports\*.txt
-          } else {
-            echo "No test reports found"
-          }
-
-      - name: Package Application
-        run: |
-          echo "========================================="
-          echo "Packaging Application..."
-          echo "========================================="
-          ./mvnw.cmd package -DskipTests
-
-      - name: Verify JAR Created
-        run: |
-          echo "Verifying JAR file..."
-          if (Test-Path target\DigiWallet-0.0.1-SNAPSHOT.jar) {
-            echo "✓ JAR file created successfully"
-            Get-ChildItem target\*.jar
-          } else {
-            echo "✗ JAR file not found"
-            exit 1
-          }
-
-      - name: Stop Running Application (if any)
-        run: |
-          echo "Stopping any running DigiWallet instances..."
-          $processes = netstat -ano | Select-String ":8080" | ForEach-Object {
-            $parts = $_ -split '\s+'
-            $parts[-1]
-          } | Sort-Object -Unique
-          foreach ($pid in $processes) {
-            if ($pid -match '^\d+$') {
-              echo "Killing process $pid"
-              taskkill /F /PID $pid 2>$null
-            }
+          $port8080 = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue
+          if ($port8080) {
+            $processId = $port8080.OwningProcess
+            Stop-Process -Id $processId -Force
+            Start-Sleep -Seconds 3
           }
         continue-on-error: true
 
-      - name: Deploy Application
+      - name: Start App
         run: |
-          echo "========================================="
-          echo "Deploying DigiWallet Application..."
-          echo "========================================="
-          Start-Process -FilePath "java" -ArgumentList "-jar", "target\DigiWallet-0.0.1-SNAPSHOT.jar" -RedirectStandardOutput "logs\app.log" -RedirectStandardError "logs\app-error.log" -WindowStyle Hidden
-          Start-Sleep -Seconds 10
-          echo "Application started on port 8080"
-
-      - name: Health Check
-        run: |
-          echo "========================================="
-          echo "Performing Health Check..."
-          echo "========================================="
+          Start-Process java -ArgumentList "-jar","target\DigiWallet-0.0.1-SNAPSHOT.jar" -WindowStyle Hidden
           Start-Sleep -Seconds 15
-          try {
-            Invoke-WebRequest -Uri "http://localhost:8080/actuator/health" -UseBasicParsing -TimeoutSec 5
-          } catch {
-            echo "Health check endpoint not available, checking if port is listening..."
-          }
-          netstat -ano | Select-String ":8080"
-
-      - name: Deployment Summary
-        if: success()
-        run: |
-          echo "========================================="
-          echo "✓ DEPLOYMENT SUCCESSFUL"
-          echo "========================================="
-          echo "Backend API: http://localhost:8080"
-          echo "Swagger UI: http://localhost:8080/swagger-ui.html"
-          echo "Frontend: http://localhost:3000 (manual start)"
-          echo "========================================="
-          echo "To start frontend:"
-          echo "cd frontend && python -m http.server 3000"
-          echo "========================================="
-
-      - name: Deployment Failed
-        if: failure()
-        run: |
-          echo "========================================="
-          echo "✗ DEPLOYMENT FAILED"
-          echo "========================================="
-          echo "Check the logs above for errors"
-          echo "========================================="
+          echo "App running on http://localhost:8080"
 
