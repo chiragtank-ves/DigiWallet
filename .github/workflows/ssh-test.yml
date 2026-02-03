@@ -53,14 +53,9 @@ jobs:
       - name: Start Frontend
         run: |
           $workDir = Join-Path (Get-Location) "frontend"
-          $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
-          if ($pythonCmd) {
-            Start-Process -FilePath $pythonCmd.Source -ArgumentList "-m","http.server","3000" -WorkingDirectory $workDir -WindowStyle Hidden
-            Start-Sleep -Seconds 5
-            echo "Frontend running on http://localhost:3000"
-          } else {
-            echo "Python not found, skipping frontend deployment"
-          }
+          Start-Process powershell -ArgumentList "-File","$workDir\http-server.ps1" -WindowStyle Hidden
+          Start-Sleep -Seconds 5
+          echo "Frontend running on http://localhost:3000"
         continue-on-error: true
 
 
