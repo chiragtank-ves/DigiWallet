@@ -53,9 +53,14 @@ jobs:
       - name: Start Frontend
         run: |
           $workDir = Join-Path (Get-Location) "frontend"
-          Start-Process python -ArgumentList "-m","http.server","3000" -WorkingDirectory $workDir -WindowStyle Hidden
-          Start-Sleep -Seconds 5
-          echo "Frontend running on http://localhost:3000"
+          $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+          if ($pythonCmd) {
+            Start-Process -FilePath $pythonCmd.Source -ArgumentList "-m","http.server","3000" -WorkingDirectory $workDir -WindowStyle Hidden
+            Start-Sleep -Seconds 5
+            echo "Frontend running on http://localhost:3000"
+          } else {
+            echo "Python not found, skipping frontend deployment"
+          }
         continue-on-error: true
 
 
