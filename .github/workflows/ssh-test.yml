@@ -53,7 +53,16 @@ jobs:
       - name: Start Frontend
         run: |
           $frontendPath = Join-Path $PWD "frontend"
-          Start-Process python -ArgumentList "-m","http.server","3000" -WorkingDirectory $frontendPath -WindowStyle Hidden
+          $pythonExe = (Get-Command python -ErrorAction SilentlyContinue).Source
+          if (-not $pythonExe) {
+            $pythonExe = (Get-Command python3 -ErrorAction SilentlyContinue).Source
+          }
+          if (-not $pythonExe) {
+            echo "Python not found in PATH, trying common locations..."
+            $pythonExe = "C:\Python\python.exe"
+          }
+          echo "Using Python: $pythonExe"
+          Start-Process -FilePath $pythonExe -ArgumentList "-m","http.server","3000" -WorkingDirectory $frontendPath -WindowStyle Hidden
           Start-Sleep -Seconds 5
           echo "Frontend running on http://localhost:3000"
 
