@@ -57,11 +57,11 @@ jobs:
           echo "========================================="
           echo "Test Results Summary"
           echo "========================================="
-          if exist target\surefire-reports\*.txt (
-            type target\surefire-reports\*.txt
-          ) else (
+          if (Test-Path target\surefire-reports\*.txt) {
+            Get-Content target\surefire-reports\*.txt
+          } else {
             echo "No test reports found"
-          )
+          }
 
       - name: Package Application
         run: |
@@ -73,21 +73,27 @@ jobs:
       - name: Verify JAR Created
         run: |
           echo "Verifying JAR file..."
-          if exist target\DigiWallet-0.0.1-SNAPSHOT.jar (
+          if (Test-Path target\DigiWallet-0.0.1-SNAPSHOT.jar) {
             echo "✓ JAR file created successfully"
-            dir target\*.jar
-          ) else (
+            Get-ChildItem target\*.jar
+          } else {
             echo "✗ JAR file not found"
             exit 1
-          )
+          }
 
       - name: Stop Running Application (if any)
         run: |
           echo "Stopping any running DigiWallet instances..."
-          FOR /F "tokens=5" %%P IN ('netstat -ano ^| findstr :8080') DO (
-            echo Killing process %%P
-            taskkill /F /PID %%P
-          )
+          $processes = netstat -ano | Select-String ":8080" | ForEach-Object {
+            $parts = $_ -split '\s+'
+            $parts[-1]
+          } | Sort-Object -Unique
+          foreach ($pid in $processes) {
+            if ($pid -match '^\d+$') {
+              echo "Killing process $pid"
+              taskkill /F /PID $pid 2>$null
+            }
+          }
         continue-on-error: true
 
       - name: Deploy Application
@@ -95,8 +101,8 @@ jobs:
           echo "========================================="
           echo "Deploying DigiWallet Application..."
           echo "========================================="
-          start "DigiWallet-Backend" cmd /c "java -jar target\DigiWallet-0.0.1-SNAPSHOT.jar > logs\app.log 2>&1"
-          timeout /t 10 /nobreak
+          Start-Process -FilePath "java" -ArgumentList "-jar", "target\DigiWallet-0.0.1-SNAPSHOT.jar" -RedirectStandardOutput "logs\app.log" -RedirectStandardError "logs\app-error.log" -WindowStyle Hidden
+          Start-Sleep -Seconds 10
           echo "Application started on port 8080"
 
       - name: Health Check
@@ -104,9 +110,13 @@ jobs:
           echo "========================================="
           echo "Performing Health Check..."
           echo "========================================="
-          timeout /t 15 /nobreak
-          curl -f http://localhost:8080/actuator/health || curl -f http://localhost:8080/ || echo "Health check endpoint not available, checking if port is listening..."
-          netstat -ano | findstr :8080
+          Start-Sleep -Seconds 15
+          try {
+            Invoke-WebRequest -Uri "http://localhost:8080/actuator/health" -UseBasicParsing -TimeoutSec 5
+          } catch {
+            echo "Health check endpoint not available, checking if port is listening..."
+          }
+          netstat -ano | Select-String ":8080"
 
       - name: Deployment Summary
         if: success()
