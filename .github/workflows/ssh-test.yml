@@ -1,0 +1,133 @@
+name: DigiWallet CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - final_fsd
+  pull_request:
+    branches:
+      - main
+      - final_fsd
+
+jobs:
+  build-test-deploy:
+    runs-on: self-hosted
+    name: Build, Test & Deploy DigiWallet
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Display Environment Info
+        run: |
+          echo "========================================="
+          echo "DigiWallet CI/CD Pipeline Started"
+          echo "========================================="
+          echo "Working Directory: %CD%"
+          echo "Java Version:"
+          java -version
+          echo "Maven Version:"
+          ./mvnw.cmd -version
+          echo "========================================="
+
+      - name: Build Project (Skip Tests)
+        run: |
+          echo "Building DigiWallet Project..."
+          ./mvnw.cmd clean compile -DskipTests
+
+      - name: Run Unit Tests
+        run: |
+          echo "========================================="
+          echo "Running Unit Tests..."
+          echo "========================================="
+          ./mvnw.cmd test
+        continue-on-error: false
+
+      - name: Generate Test Report
+        if: always()
+        run: |
+          echo "========================================="
+          echo "Test Results Summary"
+          echo "========================================="
+          if exist target\surefire-reports\*.txt (
+            type target\surefire-reports\*.txt
+          ) else (
+            echo "No test reports found"
+          )
+
+      - name: Package Application
+        run: |
+          echo "========================================="
+          echo "Packaging Application..."
+          echo "========================================="
+          ./mvnw.cmd package -DskipTests
+
+      - name: Verify JAR Created
+        run: |
+          echo "Verifying JAR file..."
+          if exist target\DigiWallet-0.0.1-SNAPSHOT.jar (
+            echo "✓ JAR file created successfully"
+            dir target\*.jar
+          ) else (
+            echo "✗ JAR file not found"
+            exit 1
+          )
+
+      - name: Stop Running Application (if any)
+        run: |
+          echo "Stopping any running DigiWallet instances..."
+          FOR /F "tokens=5" %%P IN ('netstat -ano ^| findstr :8080') DO (
+            echo Killing process %%P
+            taskkill /F /PID %%P
+          )
+        continue-on-error: true
+
+      - name: Deploy Application
+        run: |
+          echo "========================================="
+          echo "Deploying DigiWallet Application..."
+          echo "========================================="
+          start "DigiWallet-Backend" cmd /c "java -jar target\DigiWallet-0.0.1-SNAPSHOT.jar > logs\app.log 2>&1"
+          timeout /t 10 /nobreak
+          echo "Application started on port 8080"
+
+      - name: Health Check
+        run: |
+          echo "========================================="
+          echo "Performing Health Check..."
+          echo "========================================="
+          timeout /t 15 /nobreak
+          curl -f http://localhost:8080/actuator/health || curl -f http://localhost:8080/ || echo "Health check endpoint not available, checking if port is listening..."
+          netstat -ano | findstr :8080
+
+      - name: Deployment Summary
+        if: success()
+        run: |
+          echo "========================================="
+          echo "✓ DEPLOYMENT SUCCESSFUL"
+          echo "========================================="
+          echo "Backend API: http://localhost:8080"
+          echo "Swagger UI: http://localhost:8080/swagger-ui.html"
+          echo "Frontend: http://localhost:3000 (manual start)"
+          echo "========================================="
+          echo "To start frontend:"
+          echo "cd frontend && python -m http.server 3000"
+          echo "========================================="
+
+      - name: Deployment Failed
+        if: failure()
+        run: |
+          echo "========================================="
+          echo "✗ DEPLOYMENT FAILED"
+          echo "========================================="
+          echo "Check the logs above for errors"
+          echo "========================================="
+
