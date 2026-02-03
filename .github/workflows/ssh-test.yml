@@ -30,7 +30,7 @@ jobs:
             Write-Error "JAR file not found!"
             exit 1
           }
-          Write-Host "✓ JAR file verified: target\DigiWallet-0.0.1-SNAPSHOT.jar"
+          Write-Host "[OK] JAR file verified: target\DigiWallet-0.0.1-SNAPSHOT.jar"
 
       - name: Start Backend
         run: |
@@ -71,7 +71,7 @@ jobs:
               $connection = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
               if ($connection) {
                 $backendReady = $true
-                Write-Host "✓ Backend is listening on port 8080"
+                Write-Host "[OK] Backend is listening on port 8080"
               }
             } catch {
               # Port not ready yet
@@ -97,7 +97,7 @@ jobs:
             exit 1
           }
           
-          Write-Host "✓ Backend successfully started on http://localhost:8080"
+          Write-Host "[OK] Backend successfully started on http://localhost:8080"
 
       - name: Start Frontend
         run: |
@@ -183,7 +183,7 @@ jobs:
               $connection = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
               if ($connection) {
                 $frontendReady = $true
-                Write-Host "✓ Frontend is listening on port 3000"
+                Write-Host "[OK] Frontend is listening on port 3000"
               }
             } catch {
               # Port not ready yet
@@ -199,7 +199,7 @@ jobs:
           }
           
           if ($frontendReady) {
-            Write-Host "✓ Frontend successfully started on http://localhost:3000"
+            Write-Host "[OK] Frontend successfully started on http://localhost:3000"
           } else {
             Write-Warning "Frontend may not have started correctly (continuing anyway)"
           }
