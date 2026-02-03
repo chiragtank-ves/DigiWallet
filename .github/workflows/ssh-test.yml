@@ -52,8 +52,8 @@ jobs:
 
       - name: Start Frontend
         run: |
-          cd frontend
-          Start-Job -ScriptBlock { python -m http.server 3000 }
+          $workDir = Join-Path (Get-Location) "frontend"
+          Start-Process python -ArgumentList "-m","http.server","3000" -WorkingDirectory $workDir -WindowStyle Hidden
           Start-Sleep -Seconds 5
           echo "Frontend running on http://localhost:3000"
         continue-on-error: true
