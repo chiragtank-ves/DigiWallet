@@ -9,29 +9,99 @@ jobs:
     runs-on: self-hosted
 
     steps:
+      # -------------------------
+      # 1. Checkout code
+      # -------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
+      # -------------------------
+      # 2. Setup Java 17
+      # -------------------------
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-
-      - name: Build JAR
+      # -------------------------
+      # 3. Build Spring Boot JAR
+      # -------------------------
+      - name: Build Backend
         run: ./mvnw.cmd package -DskipTests
 
-      - name: Deploy
+      # -------------------------
+      # 4. Stop backend on 8080 (if running)
+      # -------------------------
+      - name: Stop Backend (8080)
+        shell: powershell
         run: |
-          echo "Starting backend..."
-          start /b java -jar target\DigiWallet-0.0.1-SNAPSHOT.jar
-          timeout /t 10 /nobreak
-          echo "Starting frontend..."
-          cd frontend
-          start /b powershell -ExecutionPolicy Bypass -File http-server.ps1
-          echo "Deployment complete - Backend: http://localhost:8080 Frontend: http://localhost:3000"
-        shell: cmd
+          $conn = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue
+          if ($conn) {
+            Stop-Process -Id $conn.OwningProcess -Force
+            Start-Sleep -Seconds 3
+          }
+        continue-on-error: true
 
+      # -------------------------
+      # 5. Start Spring Boot backend
+      # -------------------------
+      - name: Start Backend
+        shell: powershell
+        run: |
+          $appDir = Get-Location
+          $jar = Join-Path $appDir "target\DigiWallet-0.0.1-SNAPSHOT.jar"
 
+          Write-Host "Starting backend from $jar"
 
+          Start-Process java `
+            -ArgumentList "-jar `"$jar`"" `
+            -WorkingDirectory $appDir `
+            -RedirectStandardOutput "backend.log" `
+            -RedirectStandardError "backend-error.log" `
+            -WindowStyle Hidden
+
+          Start-Sleep -Seconds 15
+          netstat -ano | findstr :8080
+
+      # -------------------------
+      # 6. Stop frontend on 3000 (if running)
+      # -------------------------
+      - name: Stop Frontend (3000)
+        shell: powershell
+        run: |
+          $conn = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
+          if ($conn) {
+            Stop-Process -Id $conn.OwningProcess -Force
+            Start-Sleep -Seconds 2
+          }
+        continue-on-error: true
+
+      # -------------------------
+      # 7. Start Frontend (PowerShell HttpListener)
+      # -------------------------
+      - name: Start Frontend
+        shell: powershell
+        run: |
+          $frontendDir = Join-Path (Get-Location) "frontend"
+
+          Write-Host "Starting frontend from $frontendDir"
+
+          Start-Process powershell `
+            -ArgumentList "-ExecutionPolicy Bypass -File `"$frontendDir\http-server.ps1`"" `
+            -WorkingDirectory $frontendDir `
+            -RedirectStandardOutput "frontend.log" `
+            -RedirectStandardError "frontend-error.log" `
+            -WindowStyle Hidden
+
+          Start-Sleep -Seconds 5
+          netstat -ano | findstr :3000
+
+      # -------------------------
+      # 8. Final confirmation
+      # -------------------------
+      - name: Deployment Summary
+        run: |
+          echo Backend  : http://localhost:8080
+          echo Swagger  : http://localhost:8080/swagger-ui/index.html
+          echo Frontend : http://localhost:3000
