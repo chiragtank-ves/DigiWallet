@@ -30,7 +30,7 @@ class CardServiceTest {
 
     // ---------------------------------------------------------
     // REMOVE @Disabled TO ENABLE THE TESTS
-    @Disabled
+    //@Disabled
     @Nested
     @DisplayName("createCard()")
     class CreateCardTests {
@@ -79,7 +79,7 @@ class CardServiceTest {
 
     // ---------------------------------------------------------
     // REMOVE @Disabled TO ENABLE THE TESTS
-    @Disabled
+    //@Disabled
     @Nested
     @DisplayName("getCardById()")
     class GetCardByIdTests {
@@ -120,7 +120,7 @@ class CardServiceTest {
 
     // ---------------------------------------------------------
     // REMOVE @Disabled TO ENABLE THE TESTS
-    @Disabled
+    //@Disabled
     @Nested
     @DisplayName("updateCard()")
     class UpdateCardTests {
@@ -170,7 +170,7 @@ class CardServiceTest {
 
     // ---------------------------------------------------------
     // REMOVE @Disabled TO ENABLE THE TESTS
-    @Disabled
+    //@Disabled
     @Nested
     @DisplayName("deleteCard()")
     class DeleteCardTests {
@@ -180,14 +180,17 @@ class CardServiceTest {
         void givenExistingCardId_whenDeleteCard_thenDeleteSuccessfully() {
 
             // GIVEN
-            Mockito.when(cardRepository.existsById(1L))
-                    .thenReturn(true);
+            Card existingCard = new Card();
+            existingCard.setId(1L);
+            
+            Mockito.when(cardRepository.findById(1L))
+                    .thenReturn(Optional.of(existingCard));
 
             // WHEN
             cardService.deleteCard(1L);
 
             // THEN
-            Mockito.verify(cardRepository).deleteById(1L);
+            Mockito.verify(cardRepository).delete(existingCard);
         }
 
         @Test
@@ -195,15 +198,15 @@ class CardServiceTest {
         void givenNonExistingCardId_whenDeleteCard_thenThrowException() {
 
             // GIVEN
-            Mockito.when(cardRepository.existsById(1L))
-                    .thenReturn(false);
+            Mockito.when(cardRepository.findById(1L))
+                    .thenReturn(Optional.empty());
 
             // WHEN / THEN
             assertThatThrownBy(() -> cardService.deleteCard(1L))
                     .isInstanceOf(RuntimeException.class)
                     .hasMessage("Card not found with id: 1");
 
-            Mockito.verify(cardRepository, Mockito.never()).deleteById(Mockito.any());
+            Mockito.verify(cardRepository, Mockito.never()).delete(Mockito.any());
         }
     }
 }

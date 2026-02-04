@@ -3,7 +3,6 @@ package com.orion.DigiWallet.service;
 import com.orion.DigiWallet.model.User;
 import com.orion.DigiWallet.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -112,28 +111,22 @@ class UserServiceTest {
 
     @Nested
     class GenerateGreetingMsgTests {
-        //TODO: : 1.7
-        // Implement unit tests for generateGreetingMsg method in UserService
-        // Cover scenarios for ADMIN role, non-ADMIN role, and null role
-        // Use assertions to verify the correctness of the returned greeting messages
-
-        //remove @Disabled after implementing write test actual method
-        @Disabled
         @Test
         void shouldReturnAdminGreeting_whenRoleIsAdmin() {
-
+            String result = userService.generateGreetingMsg("ADMIN");
+            assertEquals("Hello ADMIN - Admin access enabled", result);
         }
 
-        @Disabled
         @Test
         void shouldReturnUserGreeting_whenRoleIsNotAdmin() {
-
+            String result = userService.generateGreetingMsg("USER");
+            assertEquals("Hello USER - User access", result);
         }
 
-        @Disabled
         @Test
         void shouldReturnUserGreeting_whenRoleIsNull() {
-
+            String result = userService.generateGreetingMsg(null);
+            assertEquals("Hello USER - User access", result);
         }
     }
 
@@ -153,25 +146,21 @@ class UserServiceTest {
         // THEN
         assertEquals(2, result.size());
 
-        //TODO: 1.8.1
+        //DONE: 1.8.1
         // Verify greeting message is generated
         // Uncomment the below assertions after implementing greeting message logic
         //ONLY IF 1.4 IS DONE
 
-       // assertNotNull(result.get(0).getUserGreetingMessage());
-        // assertNotNull(result.get(1).getUserGreetingMessage());
+        assertNotNull(result.get(0).getUserGreetingMessage());
+        assertNotNull(result.get(1).getUserGreetingMessage());
 
-        // assertTrue(result.get(0).getUserGreetingMessage().contains("User access"));
-        // assertTrue(result.get(1).getUserGreetingMessage().contains("Admin access"));
+        assertTrue(result.get(0).getUserGreetingMessage().contains("User access"));
+        assertTrue(result.get(1).getUserGreetingMessage().contains("Admin access"));
 
         // Verify repository interaction
         verify(mockUserRepository, times(1)).findAll();
     }
 
-    //TODO: 1.9
-    // implement the unit test for getUserById method in UserService
-    // remove @Disabled after implementing write test actual method
-    @Disabled
     @Test
     void getUserById_shouldReturnUserWithGreetingMessage() {
         // GIVEN
@@ -239,6 +228,118 @@ class UserServiceTest {
                     () -> userService.createUser(inputUser));
 
             verify(mockUserRepository).existsByUsername("existinguser");
+            verify(mockUserRepository, never()).save(any(User.class));
+        }
+    }
+
+    @Nested
+    class UpdateUserStatusTests {
+
+        @Test
+        void updateUserStatus_shouldSetToInactive_whenCurrentStatusIsActive() {
+            // GIVEN
+            User activeUser = new User();
+            activeUser.setId(1L);
+            activeUser.setUsername("testuser");
+            activeUser.setStatus("ACTIVE");
+
+            User updatedUser = new User();
+            updatedUser.setId(1L);
+            updatedUser.setUsername("testuser");
+            updatedUser.setStatus("INACTIVE");
+
+            when(mockUserRepository.findById(1L))
+                    .thenReturn(Optional.of(activeUser));
+
+            when(mockUserRepository.save(any(User.class)))
+                    .thenReturn(updatedUser);
+
+            // WHEN
+            User result = userService.updateUserStatus(1L);
+
+            // THEN
+            assertNotNull(result);
+            assertEquals("INACTIVE", result.getStatus());
+
+            verify(mockUserRepository).findById(1L);
+            verify(mockUserRepository).save(any(User.class));
+        }
+
+        @Test
+        void updateUserStatus_shouldSetToActive_whenCurrentStatusIsInactive() {
+            // GIVEN
+            User inactiveUser = new User();
+            inactiveUser.setId(2L);
+            inactiveUser.setUsername("testuser2");
+            inactiveUser.setStatus("INACTIVE");
+
+            User updatedUser = new User();
+            updatedUser.setId(2L);
+            updatedUser.setUsername("testuser2");
+            updatedUser.setStatus("ACTIVE");
+
+            when(mockUserRepository.findById(2L))
+                    .thenReturn(Optional.of(inactiveUser));
+
+            when(mockUserRepository.save(any(User.class)))
+                    .thenReturn(updatedUser);
+
+            // WHEN
+            User result = userService.updateUserStatus(2L);
+
+            // THEN
+            assertNotNull(result);
+            assertEquals("ACTIVE", result.getStatus());
+
+            verify(mockUserRepository).findById(2L);
+            verify(mockUserRepository).save(any(User.class));
+        }
+
+        @Test
+        void updateUserStatus_shouldSetToActive_whenCurrentStatusIsNull() {
+            // GIVEN
+            User userWithNullStatus = new User();
+            userWithNullStatus.setId(3L);
+            userWithNullStatus.setUsername("testuser3");
+            userWithNullStatus.setStatus(null);
+
+            User updatedUser = new User();
+            updatedUser.setId(3L);
+            updatedUser.setUsername("testuser3");
+            updatedUser.setStatus("ACTIVE");
+
+            when(mockUserRepository.findById(3L))
+                    .thenReturn(Optional.of(userWithNullStatus));
+
+            when(mockUserRepository.save(any(User.class)))
+                    .thenReturn(updatedUser);
+
+            // WHEN
+            User result = userService.updateUserStatus(3L);
+
+            // THEN
+            assertNotNull(result);
+            assertEquals("ACTIVE", result.getStatus());
+
+            verify(mockUserRepository,times(1)).findById(3L);
+            verify(mockUserRepository,times(1)).save(any(User.class));
+        }
+
+        @Test
+        void updateUserStatus_shouldThrowException_whenUserNotFound() {
+            // GIVEN
+            Long nonExistentId = 999L;
+
+            when(mockUserRepository.findById(nonExistentId))
+                    .thenReturn(Optional.empty());
+
+            // WHEN + THEN
+            RuntimeException exception = assertThrows(RuntimeException.class,
+                    () -> userService.updateUserStatus(nonExistentId));
+
+            assertEquals("User not found with id " + nonExistentId, exception.getMessage());
+
+            verify(mockUserRepository,times(1)).findById(nonExistentId);
             verify(mockUserRepository, never()).save(any(User.class));
         }
     }

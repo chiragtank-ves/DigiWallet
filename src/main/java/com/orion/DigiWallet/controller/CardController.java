@@ -21,19 +21,19 @@ public class CardController {
         this.cardService = cardService;
     }
 
-    //TODO: 4.4.2 USE REQUESTSTATUS ANNOTATION TO RETURN 201 CREATED STATUS
+    @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
     @PostMapping("/create")
     public Card createCard(@RequestBody Card card) {
         return cardService.createCard(card);
     }
 
-    //TODO: 4.4.3 USE REQUESTSTATUS ANNOTATION TO RETURN 200 OK STATUS
+    @ResponseStatus(org.springframework.http.HttpStatus.OK)
     @GetMapping("/{id}")
     public Card getCardById(@PathVariable Long id) {
         return cardService.getCardById(id);
     }
 
-    //TODO: 4.4.4 USE REQUESTSTATUS ANNOTATION TO RETURN 200 OK STATUS
+    @ResponseStatus(org.springframework.http.HttpStatus.OK)
     @PutMapping("/{id}")
     public Card updateCard(
             @PathVariable Long id,
@@ -42,7 +42,7 @@ public class CardController {
         return cardService.updateCard(id, updatedCard);
     }
 
-    //TODO: 4.4.5 USE REQUESTSTATUS ANNOTATION TO RETURN 200 OK STATUS
+    @ResponseStatus(org.springframework.http.HttpStatus.OK)
     @DeleteMapping("/{id}")
     public String deleteCard(@PathVariable Long id) {
         cardService.deleteCard(id);

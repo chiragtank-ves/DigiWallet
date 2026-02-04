@@ -43,61 +43,57 @@ public class TransactionService {
             Long walletId,
             Long categoryId,
             Double amount) {
-//
-         //REMOVE THIS LINE TO ENABLE THE METHOD
-        return null;
+        // 1. Fetch Wallet
+        Wallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
 
-//        // 1. Fetch Wallet
-//        Wallet wallet = walletRepository.findById(walletId)
-//                .orElseThrow(() -> new RuntimeException("Wallet not found"));
-//
-//        // 2. Fetch Category
-//        Category category = categoryRepository.findById(categoryId)
-//                .orElseThrow(() -> new RuntimeException("Category not found"));
-//
-//        // 3. Validate Amount
-//        if (amount == null || amount <= 0) {
-//            throw new RuntimeException("Amount must be greater than zero");
-//        }
-//
-//        BigDecimal txnAmount = BigDecimal.valueOf(amount);
-//        BigDecimal currentBalance = wallet.getBalance();
-//
-//        String transactionType;
-//
-//        // 4. Decide CREDIT or DEBIT based on Category Type
-//        if ("INCOME".equalsIgnoreCase(category.getType())) {
-//
-//            // CREDIT → Add money
-//            wallet.setBalance(currentBalance.add(txnAmount));
-//            transactionType = "CREDIT";
-//
-//        } else if ("EXPENSE".equalsIgnoreCase(category.getType())) {
-//
-//            // DEBIT → Check balance first
-//            if (currentBalance.compareTo(txnAmount) < 0) {
-//                throw new RuntimeException("Insufficient wallet balance");
-//            }
-//
-//            wallet.setBalance(currentBalance.subtract(txnAmount));
-//            transactionType = "DEBIT";
-//
-//        } else {
-//            throw new RuntimeException("Invalid category type");
-//        }
-//
-//        // 5. Save Updated Wallet
-//        walletRepository.save(wallet);
-//
-//        // 6. Create Transaction Record
-//        Transaction transaction = new Transaction();
-//        transaction.setWallet(wallet);
-//        transaction.setCategory(category);
-//        transaction.setAmount(amount);
-//        transaction.setTransactionType(transactionType);
-//        transaction.setReferenceId(generateReferenceId());
-//
-//        return transactionRepository.save(transaction);
+        // 2. Fetch Category
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+
+        // 3. Validate Amount
+        if (amount == null || amount <= 0) {
+            throw new RuntimeException("Amount must be greater than zero");
+        }
+
+        BigDecimal txnAmount = BigDecimal.valueOf(amount);
+        BigDecimal currentBalance = wallet.getBalance();
+
+        String transactionType;
+
+        // 4. Decide CREDIT or DEBIT based on Category Type
+        if ("INCOME".equalsIgnoreCase(category.getType())) {
+
+            // CREDIT → Add money
+            wallet.setBalance(currentBalance.add(txnAmount));
+            transactionType = "CREDIT";
+
+        } else if ("EXPENSE".equalsIgnoreCase(category.getType())) {
+
+            // DEBIT → Check balance first
+            if (currentBalance.compareTo(txnAmount) < 0) {
+                throw new RuntimeException("Insufficient wallet balance");
+            }
+
+            wallet.setBalance(currentBalance.subtract(txnAmount));
+            transactionType = "DEBIT";
+
+        } else {
+            throw new RuntimeException("Invalid category type");
+        }
+
+        // 5. Save Updated Wallet
+        walletRepository.save(wallet);
+
+        // 6. Create Transaction Record
+        Transaction transaction = new Transaction();
+        transaction.setWallet(wallet);
+        transaction.setCategory(category);
+        transaction.setAmount(amount);
+        transaction.setTransactionType(transactionType);
+        transaction.setReferenceId(generateReferenceId());
+
+        return transactionRepository.save(transaction);
     }
 
     // Utility method

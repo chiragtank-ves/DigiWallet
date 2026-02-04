@@ -15,8 +15,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@ActiveProfiles("test")
+// H2 in-memory database will be auto-configured by @DataJpaTest
 //TODO: 3.7: remove @Disabled to enable the tests
 // Go though the complete walletRepositoryTest and answer or discuss with fellow engineers
 // Q1: Do you see any similarities with other repository tests you have done so far?
@@ -24,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // Q3: Why is it important to have test cases like these for repositories?
 // Q4: How does this test ensure the integrity of data operations in the application?
 // Q5: What would happen if the walletRepository.findByUserId method did not work as expected?
-@Disabled
+//@Disabled
 class WalletRepositoryTest {
 
     @Autowired
