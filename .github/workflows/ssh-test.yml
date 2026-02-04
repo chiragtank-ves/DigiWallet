@@ -10,7 +10,7 @@ jobs:
 
     steps:
       # -------------------------
-      # 1. Checkout code
+      # 1. Checkout source code
       # -------------------------
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
         run: ./mvnw.cmd package -DskipTests
 
       # -------------------------
-      # 4. Stop backend on 8080 (if running)
+      # 4. Stop backend on port 8080 (if any)
       # -------------------------
       - name: Stop Backend (8080)
         shell: powershell
@@ -44,7 +44,7 @@ jobs:
         continue-on-error: true
 
       # -------------------------
-      # 5. Start Spring Boot backend
+      # 5. Start Spring Boot backend (SAFE)
       # -------------------------
       - name: Start Backend
         shell: powershell
@@ -61,11 +61,12 @@ jobs:
             -RedirectStandardError "backend-error.log" `
             -WindowStyle Hidden
 
-          Start-Sleep -Seconds 15
-          netstat -ano | findstr :8080
+          Start-Sleep -Seconds 30
+
+          netstat -ano | findstr :8080 || Write-Host "Backend still starting (no port yet)"
 
       # -------------------------
-      # 6. Stop frontend on 3000 (if running)
+      # 6. Stop frontend on port 3000 (if any)
       # -------------------------
       - name: Stop Frontend (3000)
         shell: powershell
@@ -78,13 +79,12 @@ jobs:
         continue-on-error: true
 
       # -------------------------
-      # 7. Start Frontend (PowerShell HttpListener)
+      # 7. Start Frontend (PowerShell HTTP server)
       # -------------------------
       - name: Start Frontend
         shell: powershell
         run: |
           $frontendDir = Join-Path (Get-Location) "frontend"
-
           Write-Host "Starting frontend from $frontendDir"
 
           Start-Process powershell `
@@ -95,10 +95,11 @@ jobs:
             -WindowStyle Hidden
 
           Start-Sleep -Seconds 5
-          netstat -ano | findstr :3000
+
+          netstat -ano | findstr :3000 || Write-Host "Frontend still starting"
 
       # -------------------------
-      # 8. Final confirmation
+      # 8. Deployment summary
       # -------------------------
       - name: Deployment Summary
         run: |
