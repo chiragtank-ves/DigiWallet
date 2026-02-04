@@ -63,7 +63,7 @@ jobs:
 
           Start-Sleep -Seconds 30
 
-          netstat -ano | findstr :8080 || Write-Host "Backend still starting (no port yet)"
+          
 
       # -------------------------
       # 6. Stop frontend on port 3000 (if any)
@@ -96,7 +96,7 @@ jobs:
 
           Start-Sleep -Seconds 5
 
-          netstat -ano | findstr :3000 || Write-Host "Frontend still starting"
+          
 
       # -------------------------
       # 8. Deployment summary
