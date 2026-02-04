@@ -9,30 +9,30 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      # -------------------------
-      # 1. Checkout source code
-      # -------------------------
+      # ---------------------------------
+      # 1. Checkout source
+      # ---------------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
-      # -------------------------
+      # ---------------------------------
       # 2. Setup Java 17
-      # -------------------------
+      # ---------------------------------
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # -------------------------
+      # ---------------------------------
       # 3. Build Spring Boot JAR
-      # -------------------------
+      # ---------------------------------
       - name: Build Backend
         run: ./mvnw.cmd package -DskipTests
 
-      # -------------------------
-      # 4. Stop backend on port 8080 (if any)
-      # -------------------------
+      # ---------------------------------
+      # 4. Stop existing backend (8080)
+      # ---------------------------------
       - name: Stop Backend (8080)
         shell: powershell
         run: |
@@ -43,9 +43,9 @@ jobs:
           }
         continue-on-error: true
 
-      # -------------------------
-      # 5. Start Spring Boot backend (SAFE)
-      # -------------------------
+      # ---------------------------------
+      # 5. Start Spring Boot backend
+      # ---------------------------------
       - name: Start Backend
         shell: powershell
         run: |
@@ -53,6 +53,7 @@ jobs:
           $jar = Join-Path $appDir "target\DigiWallet-0.0.1-SNAPSHOT.jar"
 
           Write-Host "Starting backend from $jar"
+          Write-Host "Working directory: $appDir"
 
           Start-Process java `
             -ArgumentList "-jar `"$jar`"" `
@@ -63,11 +64,16 @@ jobs:
 
           Start-Sleep -Seconds 30
 
-          
+          $port = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue
+          if ($port) {
+            Write-Host "Backend is listening on port 8080"
+          } else {
+            Write-Host "Backend not bound yet (still starting)"
+          }
 
-      # -------------------------
-      # 6. Stop frontend on port 3000 (if any)
-      # -------------------------
+      # ---------------------------------
+      # 6. Stop existing frontend (3000)
+      # ---------------------------------
       - name: Stop Frontend (3000)
         shell: powershell
         run: |
@@ -78,9 +84,9 @@ jobs:
           }
         continue-on-error: true
 
-      # -------------------------
-      # 7. Start Frontend (PowerShell HTTP server)
-      # -------------------------
+      # ---------------------------------
+      # 7. Start Frontend (PowerShell HTTP)
+      # ---------------------------------
       - name: Start Frontend
         shell: powershell
         run: |
@@ -96,11 +102,16 @@ jobs:
 
           Start-Sleep -Seconds 5
 
-          
+          $port = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
+          if ($port) {
+            Write-Host "Frontend is listening on port 3000"
+          } else {
+            Write-Host "Frontend not bound yet"
+          }
 
-      # -------------------------
+      # ---------------------------------
       # 8. Deployment summary
-      # -------------------------
+      # ---------------------------------
       - name: Deployment Summary
         run: |
           echo Backend  : http://localhost:8080
