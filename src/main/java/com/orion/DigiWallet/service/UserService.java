@@ -28,32 +28,22 @@ public class UserService  {
 
         List<User> users = userRepository.findAll();
         logger.info("Total users fetched: {}", users.size());
+        for (User user : users) {
+            String greeting = generateGreetingMsg(user.getRole());
+            user.setUserGreetingMessage(greeting);
+        }
         return users;
-        //TODO: 1.4
-        // For each user in the list, call generateGreetingMsg(user)
-        // before returning the list
-        // Hint: Use a for-each loop to iterate through the users list
-        // test the result on swagger or postman
-
-
     }
 
     public User getUserById(Long id) {
 
-        //TODO: 1.1
-        // Log incoming request with user ID
-        // Example: logger.info("Fetching user with id {}", id);
-        // Fetch user from repository
-        // test the result on swagger or postman
-        return null;
+        logger.info("Fetching user with id {}", id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id " + id));
 
-        //TODO: 1.3
-        // Before returning the User object, call generateGreetingMsg(role)
-        // role as string can be obtained from user.getRole()
-        // Example: String greeting = generateGreetingMsg(user.getRole());
-        // Then set this greeting message into the User object
-        // Hint: Use user.setUserGreetingMessage(greeting)
-        // test the result on swagger or postman
+        String greeting = generateGreetingMsg(user.getRole());
+        user.setUserGreetingMessage(greeting);
+        return user;
 
     }
 
@@ -70,15 +60,11 @@ public class UserService  {
 
     String generateGreetingMsg(String role) {
 
-        //TODO: 1.2
-        // Perform a case-insensitive check to determine the role.
-        // If the role is ADMIN, append an admin-specific message
-        // Example: "Admin access enabled"
-        // If the role is NOT ADMIN, append a standard user message
-        // Example: "User access"
-        // return the complete greeting message as a String
-        // write a unit test to verify this method works as expected
-        return null;
+        boolean isAdmin = role != null && role.equalsIgnoreCase("ADMIN");
+        if (isAdmin) {
+            return "Hello ADMIN - Admin access enabled";
+        }
+        return "Hello USER - User access";
     }
 
     public User updateUserStatus(Long id) {

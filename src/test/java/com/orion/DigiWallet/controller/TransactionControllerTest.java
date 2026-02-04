@@ -37,7 +37,7 @@ class TransactionControllerTest {
     private ObjectMapper objectMapper;
 
     // ------------------------------------------------------------------
-    @Disabled
+    //@Disabled
     @Nested
     @DisplayName("POST /api/transactions/create")
     class CreateTransactionTests {

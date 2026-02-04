@@ -70,7 +70,7 @@ public class TransactionRepositoryTest {
     // Write a test to verify:
     // - Transaction can be saved successfully
     // - Transaction ID is generated
-    @Disabled
+   // @Disabled
     @Test
     void shouldSaveTransactionSuccessfully() {
         // GIVEN
@@ -91,7 +91,7 @@ public class TransactionRepositoryTest {
     // TODO: 3.6.6:
     // Write a test to verify:
     // - Transactions can be fetched by User ID
-    @Disabled
+   // @Disabled
     @Test
     void shouldFindTransactionsByUserId() {
         // GIVEN
@@ -108,7 +108,7 @@ public class TransactionRepositoryTest {
     // TODO: 3.6.7
     // Write a test to verify:
     // - Empty list is returned when no transactions exist for user
-    @Disabled
+    //@Disabled
     @Test
     void shouldReturnEmptyListWhenNoTransactionsForUser() {
         // GIVEN

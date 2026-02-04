@@ -60,7 +60,7 @@ public class CardRepositoryTest {
     // Write a test to verify:
     // - A Card can be saved successfully
     // - Card ID is generated
-    @Disabled
+    //@Disabled
     @Test
     void shouldSaveCardSuccessfully() {
         // GIVEN
@@ -77,7 +77,7 @@ public class CardRepositoryTest {
     // Write a test to verify:
     // - Card can be fetched by cardNumber
     @Test
-    @Disabled
+   // @Disabled
     void shouldFindCardByCardNumber() {
         // GIVEN
 
@@ -93,7 +93,7 @@ public class CardRepositoryTest {
     // Write a test to verify:
     // - existsByCardNumber returns true for existing card
     // - existsByCardNumber returns false for non-existing card
-    @Disabled
+    //@Disabled
     @Test
     void shouldCheckIfCardExistsByCardNumber() {
         // GIVEN

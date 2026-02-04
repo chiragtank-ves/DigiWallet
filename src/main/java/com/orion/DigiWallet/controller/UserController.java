@@ -45,14 +45,11 @@ public class UserController {
         return userService.createUser(user);
     }
 
-    //TODO: 4.1
-    // UPDATE USER STATUS FROM ACTIVE TO INACTIVE OR VICE VERSA
-    // -------------------------
-    // http://localhost:8080/api/users/{id}
-    // PUT METHOD
-    // METHOD NAME: updateUserStatus
-    // status (ACTIVE/INACTIVE)
-    // RESPONSE BODY: Updated User JSON
+    @ResponseStatus(HttpStatus.OK)
+    @PutMapping("/{id}")
+    public User updateUserStatus(@PathVariable Long id) {
+        logger.info("PUT /api/users/{} called", id);
+        return userService.updateUserStatus(id);
+    }
 
 }
-

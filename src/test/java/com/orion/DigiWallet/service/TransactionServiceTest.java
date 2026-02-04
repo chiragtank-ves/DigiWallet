@@ -62,7 +62,7 @@ class TransactionServiceTest {
     @Nested
     @DisplayName("createTransaction()")
     //TODO: REMOVE @Disabled TO ENABLE THE TESTS
-    @Disabled
+    //@Disabled
     class CreateTransactionTests {
 
         @Test
